@@ -1,0 +1,104 @@
+/* =====================================================================
+   MMLI EMAIL DESIGN SYSTEM
+   Mind Masters Liberia Initiative — "Unleashing the Genius Within"
+   -----------------------------------------------------------------------
+   This stylesheet is a REFERENCE / DOCUMENTATION of the design tokens
+   used across the email templates. Because most email clients (Outlook,
+   older Gmail) strip <link> stylesheets and even many <style> blocks,
+   every value below is duplicated as INLINE CSS directly inside each
+   template in /templates. Treat this file as the single source of
+   truth for the visual system — if you change a brand color, change it
+   here AND find/replace it across the templates.
+   ===================================================================== */
+
+:root {
+  /* ---- Brand Colors ---- */
+  --mmli-navy-deep:   #0B2545;   /* primary brand color — headers, footers */
+  --mmli-navy:         #123B70;  /* secondary navy — gradients, accents */
+  --mmli-navy-light:   #1F4E8C;  /* links on dark backgrounds */
+  --mmli-gold:         #C9A227;  /* primary accent — CTAs, dividers */
+  --mmli-gold-light:   #E8C860;  /* highlight / hover */
+  --mmli-gold-pale:    #F6ECC9;  /* soft gold background tint */
+
+  /* ---- Neutrals ---- */
+  --mmli-white:        #FFFFFF;
+  --mmli-bg:           #F4F6FA;  /* page/canvas background */
+  --mmli-card-bg:      #F8F9FC;  /* card background */
+  --mmli-border:       #E3E7EF;
+  --mmli-text:         #2B2F38;  /* body copy */
+  --mmli-text-muted:   #6B7280;  /* secondary copy */
+  --mmli-text-inverse: #F4F6FA;  /* text on navy */
+
+  /* ---- Typography ---- */
+  --mmli-font-heading: Georgia, 'Times New Roman', Times, serif;
+  --mmli-font-body: Arial, Helvetica, sans-serif;
+  --mmli-size-h1: 26px;
+  --mmli-size-h2: 20px;
+  --mmli-size-eyebrow: 12px;
+  --mmli-size-body: 15px;
+  --mmli-size-small: 12px;
+  --mmli-line-height: 1.6;
+
+  /* ---- Layout ---- */
+  --mmli-max-width: 600px;
+  --mmli-radius: 6px;
+  --mmli-gap: 24px;
+}
+
+/* ---- Gradient bar (blue → gold), used above/below header & footer ---- */
+.mmli-gradient-bar {
+  height: 4px;
+  background: linear-gradient(90deg, #123B70 0%, #1F4E8C 35%, #C9A227 70%, #E8C860 100%);
+}
+
+/* ---- Buttons ---- */
+.mmli-btn-primary {
+  background-color: var(--mmli-gold);
+  color: var(--mmli-navy-deep);
+  font-family: var(--mmli-font-body);
+  font-weight: bold;
+  font-size: 15px;
+  padding: 14px 32px;
+  border-radius: var(--mmli-radius);
+  text-decoration: none;
+  display: inline-block;
+}
+
+.mmli-btn-secondary {
+  background-color: var(--mmli-navy-deep);
+  color: var(--mmli-white);
+  font-family: var(--mmli-font-body);
+  font-weight: bold;
+  font-size: 15px;
+  padding: 14px 32px;
+  border-radius: var(--mmli-radius);
+  text-decoration: none;
+  display: inline-block;
+  border: 1px solid var(--mmli-gold);
+}
+
+/* ---- Cards ---- */
+.mmli-card {
+  background-color: var(--mmli-card-bg);
+  border: 1px solid var(--mmli-border);
+  border-left: 4px solid var(--mmli-gold);
+  border-radius: var(--mmli-radius);
+  padding: 20px 24px;
+}
+
+/* ---- Alert / highlight box ---- */
+.mmli-alert {
+  background-color: var(--mmli-gold-pale);
+  border: 1px solid var(--mmli-gold-light);
+  border-radius: var(--mmli-radius);
+  padding: 16px 20px;
+  color: var(--mmli-navy-deep);
+}
+
+/* ---- Dividers ---- */
+.mmli-divider {
+  border-top: 1px solid var(--mmli-border);
+}
+
+/* ---- Responsive breakpoint used in templates ---- */
+/* @media screen and (max-width: 600px) { ... stack columns, full-width buttons, reduce padding ... } */
