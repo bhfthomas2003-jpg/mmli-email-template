@@ -122,6 +122,24 @@
     margin:14px 0 8px; font-weight:600;
   }
   .editor-section-label:first-child{margin-top:0;}
+  .media-section{
+    background:var(--gold-pale); border:1px solid var(--gold-light); border-radius:8px;
+    padding:14px 16px 6px; margin:14px 0;
+  }
+  .media-section-title{
+    font-size:13px; font-weight:700; color:var(--navy-deep); margin-bottom:4px;
+  }
+  .media-section-title span{ font-weight:400; text-transform:none; color:var(--text-muted); font-size:11.5px; }
+  .media-section-hint{
+    font-size:11.5px; color:#6B5A20; line-height:1.5; margin-bottom:12px;
+  }
+  .media-upload-row{ margin-top:6px; }
+  .media-upload-row input[type="file"]{
+    font-size:12px; width:100%;
+  }
+  .media-upload-hint{
+    font-size:10.5px; color:var(--text-muted); display:block; margin-top:4px; line-height:1.4;
+  }
   .field-row{margin-bottom:10px;}
   .field-row label{
     display:block; font-size:11.5px; color:var(--text-muted); margin-bottom:4px; text-transform:capitalize;
@@ -216,6 +234,11 @@
       <div class="editor-actions">
         <button class="icon-btn gold" id="updatePreviewBtn">🔄 Update Preview</button>
         <button class="icon-btn" id="sendGmailBtn">📧 Send via Gmail</button>
+      </div>
+      <div class="media-section" id="mediaSection">
+        <div class="media-section-title">📷 Add Photo, Link &amp; Content <span>(optional)</span></div>
+        <div class="media-section-hint">Leave the photo empty to leave this block out of the email entirely. Fill it in and it'll appear in the preview.</div>
+        <div id="mediaFields"></div>
       </div>
       <div class="editor-section-label">Message content</div>
       <div id="editorFields"></div>
@@ -424,21 +447,21 @@ const MMLI_TEMPLATES = [
     CONTACT_EMAIL: 'mindmastersliberiainitiative@gmail.com',
     CONTACT_ADDRESS: 'Paynesville City, Monrovia, Liberia',
     PHONE: '+231 775 990 043 / +231 889 581 634',
-    WEBSITE: 'https://mindmastersliberiainitiative.github.io/MMLI.github.io',
+    WEBSITE: 'https://mindmastersliberiainitiative.github.io/mmli.org.lr',
     CURRENT_YEAR: String(new Date().getFullYear()),
     UNSUBSCRIBE_LINK: 'mailto:mindmastersliberiainitiative@gmail.com?subject=Unsubscribe',
-    FACEBOOK_URL: '#',
+    FACEBOOK_URL: 'https://www.facebook.com/profile.php?id=61575249692386',
     INSTAGRAM_URL: '#',
-    WHATSAPP_URL: '#',
+    WHATSAPP_URL: 'https://wa.me/message/L4L3DVQ7553ND1?src=qr',
     REGISTRATION_LINK: '#'
   };
 
-  // Defaults for the photo / link / content media module now included
-  // in every template. Replace FEATURED_IMAGE_URL with a real hosted
-  // photo URL before sending — everything else is safe to leave as-is
-  // or edit per email.
+  // Defaults for the optional photo / link / content module. FEATURED_IMAGE_URL
+  // starts EMPTY on purpose — fillTemplate() strips the whole module out of the
+  // email unless a photo has actually been added. The other fields only matter
+  // once a photo is present, so they carry safe fallback text.
   const MEDIA_DEFAULTS = {
-    FEATURED_IMAGE_URL: 'https://placehold.co/1040x520/0B2545/E8C860?text=Add+Your+Photo',
+    FEATURED_IMAGE_URL: '',
     FEATURED_IMAGE_ALT: 'Featured photo',
     FEATURED_LABEL: 'Featured',
     FEATURED_CAPTION: 'Add a short caption describing this photo.',
@@ -448,6 +471,22 @@ const MMLI_TEMPLATES = [
     SHARE_LINK: '#',
     SHARE_LINK_LABEL: 'Share this update'
   };
+
+  // Friendly labels + ordering for the media fields, and which ones get the
+  // photo-upload control. Only fields whose token actually exists in the
+  // current template's HTML get rendered (see buildEditor).
+  const MEDIA_FIELD_CONFIG = [
+    { tok:'FEATURED_IMAGE_URL',  label:'Photo', isPhoto:true },
+    { tok:'FEATURED_IMAGE_ALT',  label:'Photo alt text (for accessibility)' },
+    { tok:'FEATURED_LINK',       label:'Photo links to (URL, optional)' },
+    { tok:'FEATURED_LABEL',      label:'Small label above caption (e.g. FEATURED, WATCH, EVENT)' },
+    { tok:'FEATURED_CAPTION',    label:'Caption' },
+    { tok:'RESOURCE_LINK_LABEL', label:'Button text' },
+    { tok:'RESOURCE_LINK_URL',   label:'Button link (URL)' },
+    { tok:'SHARE_LINK_LABEL',    label:'Share link text' },
+    { tok:'SHARE_LINK',          label:'Share link (URL)' }
+  ];
+  const MEDIA_TOKEN_SET = new Set(MEDIA_FIELD_CONFIG.map(c => c.tok));
 
   // Sample starting content for the two content fields — fully editable/replaceable.
   const CONTENT_DEFAULTS = {
@@ -495,10 +534,54 @@ We would be honored to partner with you in making this a successful and impactfu
 
   function buildEditor(t){
     const tokens = extractPlaceholders(t.raw);
+    const mediaWrap = document.getElementById('mediaFields');
     const wrap = document.getElementById('editorFields');
+    const mediaSection = document.getElementById('mediaSection');
+    mediaWrap.innerHTML = '';
     wrap.innerHTML = '';
+
+    // --- Photo / Link / Content section (only for tokens this template has) ---
+    const hasMediaModule = MEDIA_FIELD_CONFIG.some(cfg => tokens.includes(cfg.tok));
+    mediaSection.style.display = hasMediaModule ? '' : 'none';
+
+    MEDIA_FIELD_CONFIG.forEach(cfg => {
+      if(!tokens.includes(cfg.tok)) return;
+      const val = MEDIA_DEFAULTS[cfg.tok] || '';
+      const row = document.createElement('div');
+      row.className = 'field-row';
+      const safeAttrVal = val.replace(/"/g,'&quot;');
+      if(cfg.isPhoto){
+        row.innerHTML = `
+          <label>${cfg.label}</label>
+          <input type="text" data-token="${cfg.tok}" id="mediaImageUrlInput" value="${safeAttrVal}" placeholder="Paste a photo link, or upload a file below">
+          <div class="media-upload-row">
+            <input type="file" id="mediaImageUpload" accept="image/*">
+            <span class="media-upload-hint">Uploading embeds the photo directly in the email — keep it small (under ~150KB) so Gmail doesn't clip the message. For larger photos, paste a hosted link above instead.</span>
+          </div>`;
+      } else {
+        row.innerHTML = `<label>${cfg.label}</label><input type="text" data-token="${cfg.tok}" value="${safeAttrVal}" placeholder="${cfg.tok}">`;
+      }
+      mediaWrap.appendChild(row);
+    });
+
+    const uploadInput = document.getElementById('mediaImageUpload');
+    if(uploadInput){
+      uploadInput.addEventListener('change', function(e){
+        const file = e.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev){
+          document.getElementById('mediaImageUrlInput').value = ev.target.result;
+          showToast('Photo added — click Update Preview to see it');
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // --- Everything else (message content, org info) ---
     tokens.forEach(tok => {
-      const val = ORG_DEFAULTS[tok] || CONTENT_DEFAULTS[tok] || MEDIA_DEFAULTS[tok] || '';
+      if(MEDIA_TOKEN_SET.has(tok)) return;
+      const val = ORG_DEFAULTS[tok] || CONTENT_DEFAULTS[tok] || '';
       const isLong = LONG_FIELD_HINTS.some(h => tok.includes(h));
       const row = document.createElement('div');
       row.className = 'field-row';
@@ -514,8 +597,22 @@ We would be honored to partner with you in making this a successful and impactfu
 
   function fillTemplate(){
     let html = currentTpl.raw;
-    document.querySelectorAll('#editorFields input, #editorFields textarea').forEach(inp => {
+
+    // The photo/link/content block only ships in the email if a photo was
+    // actually added. Otherwise strip the whole module out of the HTML.
+    const photoInput = document.getElementById('mediaImageUrlInput');
+    const hasPhoto = photoInput && photoInput.value.trim() !== '';
+    if(!hasPhoto){
+      html = html.replace(/<!-- MEDIA \/ LINK MODULE -->[\s\S]*?(?=<!-- FOOTER -->)/, '');
+    }
+
+    const allInputs = [
+      ...document.querySelectorAll('#mediaFields input, #mediaFields textarea'),
+      ...document.querySelectorAll('#editorFields input, #editorFields textarea')
+    ];
+    allInputs.forEach(inp => {
       const tok = inp.dataset.token;
+      if(!tok) return;
       const v = inp.value;
       if(v === '') return;
       const replacement = inp.tagName === 'TEXTAREA' ? textToEmailHtml(v) : escapeHtml(v);
