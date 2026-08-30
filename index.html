@@ -387,6 +387,7 @@ We would be honored to partner with you in making this a successful and impactfu
         richBody.innerHTML = textToEmailHtml(val);
         richBody.addEventListener('focus', () => { lastFocusedRichBody = richBody; });
         richBody.addEventListener('click', () => { lastFocusedRichBody = richBody; });
+        richBody.addEventListener('blur', () => { richBody.innerHTML = cleanupRichBodyHtml(richBody.innerHTML); });
         if(!lastFocusedRichBody) lastFocusedRichBody = richBody;
       } else {
         row.innerHTML = `<label>${label}</label><input type="text" data-token="${tok}" value="${safeAttrVal}" placeholder="${tok}">`;
@@ -396,45 +397,89 @@ We would be honored to partner with you in making this a successful and impactfu
     document.getElementById('subjectInput').value = t.name + ' — Mind Masters Liberia Initiative';
   }
 
+  // Collapses stray empty <div><br></div> / repeated <br> that Android's
+  // contenteditable likes to leave behind after a programmatic insertion.
+  function cleanupRichBodyHtml(html){
+    return html
+      .replace(/(<div>\s*<br\s*\/?>\s*<\/div>\s*)+/gi, '')
+      .replace(/<div>\s*<\/div>/gi, '')
+      .replace(/(<br\s*\/?>\s*){3,}/gi, '<br><br>')
+      .replace(/^(\s*<br\s*\/?>\s*)+/i, '')
+      .replace(/(\s*<br\s*\/?>\s*)+$/i, '')
+      .trim();
+  }
+
+  // Removes optional blocks (featured image card, CTA button, share line) that
+  // were left empty, instead of leaving a broken image icon or dead blank space.
+  function stripEmptyOptionalBlocks(html){
+    let doc;
+    try {
+      doc = new DOMParser().parseFromString(html, 'text/html');
+    } catch(e){
+      return html;
+    }
+    doc.querySelectorAll('img').forEach(img => {
+      if(!(img.getAttribute('src') || '').trim()){
+        const link = img.closest('a');
+        const row = img.closest('tr');
+        if(link) link.remove(); else if(row) row.remove(); else img.remove();
+      }
+    });
+    doc.querySelectorAll('a').forEach(a => {
+      const href = (a.getAttribute('href') || '').trim();
+      const text = (a.textContent || '').trim();
+      if(!href && !text){
+        const row = a.closest('tr');
+        if(row) row.remove(); else a.remove();
+      }
+    });
+    return '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+  }
+
   function fillTemplate(){
     let html = currentTpl.raw;
     document.querySelectorAll('#editorFields input').forEach(inp => {
       const tok = inp.dataset.token;
-      const v = inp.value;
-      if(v === '') return;
-      html = html.split('{{'+tok+'}}').join(escapeHtml(v));
+      html = html.split('{{'+tok+'}}').join(escapeHtml(inp.value));
     });
     document.querySelectorAll('#editorFields .rich-body').forEach(box => {
       const tok = box.dataset.token;
-      const v = box.innerHTML.trim();
-      if(v === '') return;
+      const v = cleanupRichBodyHtml(box.innerHTML.trim());
       html = html.split('{{'+tok+'}}').join(v);
     });
-    return html;
+    return stripEmptyOptionalBlocks(html);
   }
 
-  // ---- Add Photo / Add Link / Add Contact tools (insert into the focused rich text box) ----
-  function getInsertTarget(){
+  // ---- Add Photo / Add Link / Add Contact tools (insert wherever the cursor is) ----
+  // On Android, opening the photo picker or a prompt() dialog blurs the page and
+  // can wipe out window.getSelection(), which used to make inserts land in the
+  // wrong spot. So we snapshot the exact cursor position the instant a button is
+  // tapped, then restore that exact spot right before inserting.
+  function captureInsertPoint(){
     const target = lastFocusedRichBody || document.querySelector('#editorFields .rich-body');
     if(!target){
-      showToast('Open a template first, then click into the message box');
+      showToast('Open a template first, then tap into the message box');
       return null;
     }
-    target.focus();
-    return target;
-  }
-
-  function insertHtmlAtCursor(target, html){
-    target.focus();
     const sel = window.getSelection();
     let range;
     if(sel && sel.rangeCount && target.contains(sel.anchorNode)){
-      range = sel.getRangeAt(0);
+      range = sel.getRangeAt(0).cloneRange();
     } else {
       range = document.createRange();
       range.selectNodeContents(target);
-      range.collapse(false);
+      range.collapse(false); // no prior cursor in this box — default to the end
     }
+    return { target, range };
+  }
+
+  function insertHtmlAtSavedPoint(saved, html){
+    if(!saved) return;
+    const { target, range } = saved;
+    target.focus();
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
     range.deleteContents();
     const frag = range.createContextualFragment(html);
     const lastNode = frag.lastChild;
@@ -446,41 +491,45 @@ We would be honored to partner with you in making this a successful and impactfu
       sel.removeAllRanges();
       sel.addRange(newRange);
     }
+    target.innerHTML = cleanupRichBodyHtml(target.innerHTML);
   }
 
+  let pendingInsertPoint = null;
+
   document.getElementById('addPhotoBtn').addEventListener('click', () => {
-    const target = getInsertTarget();
-    if(!target) return;
+    const saved = captureInsertPoint();
+    if(!saved) return;
+    pendingInsertPoint = saved;
     document.getElementById('photoFileInput').click();
   });
 
   document.getElementById('photoFileInput').addEventListener('change', (e) => {
     const file = e.target.files[0];
     e.target.value = '';
-    if(!file) return;
-    const target = lastFocusedRichBody || document.querySelector('#editorFields .rich-body');
-    if(!target) return;
+    if(!file || !pendingInsertPoint) return;
+    const saved = pendingInsertPoint;
     const reader = new FileReader();
     reader.onload = () => {
-      insertHtmlAtCursor(target, `<img src="${reader.result}" alt="photo" style="max-width:100%;height:auto;border-radius:6px;margin:12px 0;display:block;">`);
-      showToast('Photo added');
+      insertHtmlAtSavedPoint(saved, `<img src="${reader.result}" alt="photo" style="max-width:100%;height:auto;border-radius:6px;margin:12px 0;display:block;">`);
+      showToast('Photo added where your cursor was');
+      pendingInsertPoint = null;
     };
     reader.readAsDataURL(file);
   });
 
   document.getElementById('addLinkBtn').addEventListener('click', () => {
-    const target = getInsertTarget();
-    if(!target) return;
+    const saved = captureInsertPoint();
+    if(!saved) return;
     const url = prompt('Link URL (e.g. https://example.com):');
     if(!url) return;
     const text = prompt('Link text to display:', url) || url;
-    insertHtmlAtCursor(target, `<a href="${escapeHtml(url)}" style="color:#1F4E8C;text-decoration:underline;">${escapeHtml(text)}</a>`);
+    insertHtmlAtSavedPoint(saved, `<a href="${escapeHtml(url)}" style="color:#1F4E8C;text-decoration:underline;">${escapeHtml(text)}</a>`);
     showToast('Link added');
   });
 
   document.getElementById('addContactBtn').addEventListener('click', () => {
-    const target = getInsertTarget();
-    if(!target) return;
+    const saved = captureInsertPoint();
+    if(!saved) return;
     const name = prompt('Contact name:');
     if(!name) return;
     const email = prompt('Contact email (optional):', '') || '';
@@ -488,7 +537,7 @@ We would be honored to partner with you in making this a successful and impactfu
     const lines = [`<strong>${escapeHtml(name)}</strong>`];
     if(email) lines.push(`<a href="mailto:${escapeHtml(email)}" style="color:#1F4E8C;text-decoration:underline;">${escapeHtml(email)}</a>`);
     if(phone) lines.push(escapeHtml(phone));
-    insertHtmlAtCursor(target, `<p style="margin:14px 0;padding:12px 14px;background:#F6ECC9;border-left:3px solid #C9A227;border-radius:4px;font-family:Arial, Helvetica, sans-serif;font-size:14px;line-height:22px;color:#2B2F38;">${lines.join('<br>')}</p>`);
+    insertHtmlAtSavedPoint(saved, `<p style="margin:14px 0;padding:12px 14px;background:#F6ECC9;border-left:3px solid #C9A227;border-radius:4px;font-family:Arial, Helvetica, sans-serif;font-size:14px;line-height:22px;color:#2B2F38;">${lines.join('<br>')}</p>`);
     showToast('Contact added');
   });
 
