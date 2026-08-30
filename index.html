@@ -693,6 +693,24 @@ We would be honored to partner with you in making this a successful and impactfu
     }
   }
 
+  // Copies BOTH a rendered-HTML clipboard entry and a plain-text fallback,
+  // so pasting into Gmail's rich compose box shows the actual formatted
+  // email (images, colors, layout) instead of raw HTML tags.
+  async function copyRichHtml(html){
+    try {
+      if(navigator.clipboard && window.ClipboardItem){
+        const item = new ClipboardItem({
+          'text/html': new Blob([html], {type:'text/html'}),
+          'text/plain': new Blob([html], {type:'text/plain'})
+        });
+        await navigator.clipboard.write([item]);
+        return true;
+      }
+    } catch(e){ /* fall through to plain-text copy below */ }
+    await copyText(html);
+    return true;
+  }
+
   document.getElementById('copyBtn').addEventListener('click', async () => {
     if(!currentTpl) return;
     await copyText(fillTemplate());
@@ -716,14 +734,24 @@ We would be honored to partner with you in making this a successful and impactfu
     URL.revokeObjectURL(url);
   });
 
-  document.getElementById('sendGmailBtn').addEventListener('click', async () => {
+  document.getElementById('sendGmailBtn').addEventListener('click', () => {
     if(!currentTpl) return;
-    await copyText(fillTemplate());
+    const html = fillTemplate();
     const to = encodeURIComponent(document.getElementById('toEmail').value || '');
     const su = encodeURIComponent(document.getElementById('subjectInput').value || '');
     const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${to}&su=${su}`;
-    window.open(gmailUrl, '_blank');
-    showToast('Design copied — paste it into the Gmail body (Ctrl/⌘+V)');
+
+    // Open Gmail FIRST, synchronously, in the same click — so mobile and
+    // desktop popup blockers see it as a direct user action and allow it.
+    const win = window.open(gmailUrl, '_blank');
+
+    copyRichHtml(html).then(() => {
+      if(win){
+        showToast('Design copied — tap the Gmail body and paste');
+      } else {
+        showToast('Pop-up blocked — allow pop-ups for this site, then tap Send via Gmail again');
+      }
+    });
   });
 
   document.getElementById('search').addEventListener('input', (e) => {
