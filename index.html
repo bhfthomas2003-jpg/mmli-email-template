@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MMLI Email Template Library — Preview Dashboard</title>
+<style>
+  :root{
+    --navy-deep:#0B2545; --navy:#123B70; --navy-light:#1F4E8C;
+    --gold:#C9A227; --gold-light:#E8C860; --gold-pale:#F6ECC9;
+    --bg:#F4F6FA; --card:#FFFFFF; --border:#E3E7EF;
+    --text:#2B2F38; --text-muted:#6B7280;
+    --font-head: Georgia, 'Times New Roman', Times, serif;
+    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body);}
+  header.app-header{
+    background:linear-gradient(135deg,var(--navy-deep),var(--navy) 60%,var(--navy-light));
+    color:#fff; padding:28px 20px 22px; position:relative; overflow:hidden;
+  }
+  header.app-header::after{
+    content:""; position:absolute; left:0; right:0; bottom:0; height:4px;
+    background:linear-gradient(90deg,var(--navy) 0%,var(--navy-light) 35%,var(--gold) 70%,var(--gold-light) 100%);
+  }
+  .brand-row{display:flex; align-items:center; gap:14px;}
+  .brand-row img{width:46px;height:46px;border-radius:50%;background:#fff;flex-shrink:0;}
+  .brand-title{font-family:var(--font-head); font-size:19px; line-height:1.25;}
+  .brand-sub{font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--gold-light); margin-top:2px;}
+  .app-desc{font-size:12.5px; color:#B9C6DC; margin-top:14px; max-width:640px; line-height:1.6;}
+
+  main{max-width:1100px; margin:0 auto; padding:20px 16px 60px;}
+
+  .search-row{display:flex; gap:8px; margin:16px 0 18px;}
+  #search{
+    flex:1; padding:12px 14px; border-radius:8px; border:1px solid var(--border);
+    font-size:14px; background:#fff;
+  }
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px;}
+  .tpl-card{
+    background:var(--card); border:1px solid var(--border); border-radius:10px;
+    padding:16px; cursor:pointer; transition:box-shadow .15s, transform .15s;
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .tpl-card:hover{box-shadow:0 4px 14px rgba(11,37,69,.12); transform:translateY(-2px);}
+  .tpl-card .num{
+    font-family:var(--font-head); font-size:11px; color:var(--gold); letter-spacing:1px;
+  }
+  .tpl-card h3{margin:0; font-size:15px; font-family:var(--font-head); color:var(--navy-deep); line-height:1.3;}
+  .tpl-card p{margin:0; font-size:12.5px; color:var(--text-muted); line-height:1.5;}
+  .tpl-card .thumb{
+    height:64px; border-radius:6px; background:linear-gradient(135deg,var(--navy-deep),var(--navy) 60%,var(--navy-light));
+    position:relative; overflow:hidden;
+  }
+  .tpl-card .thumb::after{
+    content:""; position:absolute; left:0; right:0; bottom:0; height:3px;
+    background:linear-gradient(90deg,var(--navy) 0%,var(--gold) 70%,var(--gold-light) 100%);
+  }
+  .tpl-card .thumb span{
+    position:absolute; left:10px; top:10px; font-size:9px; letter-spacing:2px;
+    color:var(--gold-light); text-transform:uppercase; font-family:var(--font-body);
+  }
+
+  /* ---- Modal / preview panel ---- */
+  .overlay{
+    display:none; position:fixed; inset:0; background:rgba(11,20,35,.6);
+    z-index:50; align-items:flex-start; justify-content:center; padding:0;
+  }
+  .overlay.open{display:flex;}
+  .panel{
+    background:#fff; width:100%; height:100%; max-width:100%;
+    display:flex; flex-direction:column;
+  }
+  .panel-header{
+    background:var(--navy-deep); color:#fff; padding:14px 16px;
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  }
+  .panel-header .titles{flex:1; min-width:160px;}
+  .panel-header h2{margin:0; font-size:15px; font-family:var(--font-head);}
+  .panel-header .purpose{font-size:11.5px; color:#B9C6DC; margin-top:2px;}
+  .icon-btn{
+    background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.25); color:#fff;
+    border-radius:6px; padding:8px 12px; font-size:12.5px; cursor:pointer; font-family:var(--font-body);
+  }
+  .icon-btn.gold{background:var(--gold); color:var(--navy-deep); border-color:var(--gold); font-weight:bold;}
+  .icon-btn:active{opacity:.8;}
+  .toolbar{
+    display:flex; gap:8px; padding:10px 16px; background:var(--card); border-bottom:1px solid var(--border);
+    flex-wrap:wrap; align-items:center;
+  }
+  .seg{display:flex; border:1px solid var(--border); border-radius:8px; overflow:hidden;}
+  .seg button{
+    border:none; background:#fff; padding:8px 14px; font-size:12.5px; cursor:pointer; color:var(--text-muted);
+    font-family:var(--font-body);
+  }
+  .seg button.active{background:var(--navy-deep); color:#fff;}
+  .preview-wrap{
+    flex:1; overflow:auto; background:#DCE3EE; display:flex; justify-content:center; padding:18px 10px;
+  }
+  iframe.mail-frame{
+    border:0; background:#fff; box-shadow:0 6px 24px rgba(11,37,69,.18);
+    width:600px; max-width:100%; height:2000px;
+    transition:width .2s ease;
+  }
+  iframe.mail-frame.mobile{width:375px;}
+
+  .toast{
+    position:fixed; bottom:22px; left:50%; transform:translateX(-50%);
+    background:var(--navy-deep); color:#fff; padding:10px 18px; border-radius:20px;
+    font-size:13px; opacity:0; pointer-events:none; transition:opacity .2s; z-index:60;
+  }
+  .toast.show{opacity:1;}
+
+  .editor-panel{
+    background:#F8F9FC; border-bottom:1px solid var(--border); padding:14px 16px;
+    max-height:44vh; overflow:auto;
+  }
+  .editor-panel.collapsed{display:none;}
+  .editor-section-label{
+    font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-muted);
+    margin:14px 0 8px; font-weight:600;
+  }
+  .editor-section-label:first-child{margin-top:0;}
+  .field-row{margin-bottom:10px;}
+  .field-row label{
+    display:block; font-size:11.5px; color:var(--text-muted); margin-bottom:4px; text-transform:capitalize;
+  }
+  .field-row input, .field-row textarea{
+    width:100%; padding:9px 10px; border:1px solid var(--border); border-radius:7px;
+    font-size:13.5px; font-family:var(--font-body); background:#fff; color:var(--text);
+  }
+  .field-row textarea{resize:vertical; min-height:56px;}
+  .field-row.two-col{display:flex; gap:8px;}
+  .field-row.two-col > div{flex:1;}
+  .editor-actions{display:flex; gap:8px; flex-wrap:wrap; margin:12px 0 4px;}
+  .editor-actions .icon-btn{flex:1; min-width:120px; text-align:center;}
+
+  footer{text-align:center; color:var(--text-muted); font-size:11.5px; padding:20px; line-height:1.7; }
+  footer a{color:inherit; text-decoration:none;}
+  footer .footer-line{margin:2px 0;}
+
+  @media (min-width:720px){
+    .overlay{padding:24px;}
+    .panel{max-width:900px; height:92vh; border-radius:12px; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,.4);}
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="brand-row">
+    <img src="../assets/logo/mmli-logo.png" alt="MMLI logo">
+    <div>
+      <div class="brand-title">MMLI Email Template Library</div>
+      <div class="brand-sub">Unleashing the Genius Within</div>
+    </div>
+  </div>
+  <div class="app-desc">
+    22 ready-to-send email templates for Mind Masters Liberia Initiative — each with a built-in photo, link, and content module. Tap any template to preview it on desktop or mobile, copy its HTML, or open it as a standalone file.
+  </div>
+</header>
+
+<main>
+  <div class="search-row">
+    <input id="search" type="text" placeholder="Search templates (e.g. sponsorship, competition, welcome)…" />
+  </div>
+  <div class="grid" id="grid"></div>
+</main>
+
+<footer>
+  <div class="footer-line">Mind Masters Liberia Initiative</div>
+  <div class="footer-line">Paynesville City, Monrovia, Liberia</div>
+  <div class="footer-line">
+    <a href="mailto:mindmastersliberiainitiative@gmail.com">mindmastersliberiainitiative@gmail.com</a>
+    &nbsp;&middot;&nbsp;
+    <a href="tel:+231775990043">+231 775 990 043</a>
+    &nbsp;&middot;&nbsp;
+    <a href="tel:+231889581634">+231 889 581 634</a>
+  </div>
+  <div class="footer-line">
+    <a href="https://mindmastersliberiainitiative.github.io/MMLI.github.io" target="_blank" rel="noopener">mindmastersliberiainitiative.github.io/MMLI.github.io</a>
+  </div>
+</footer>
+
+<div class="overlay" id="overlay">
+  <div class="panel">
+    <div class="panel-header">
+      <div class="titles">
+        <h2 id="panelTitle">Template</h2>
+        <div class="purpose" id="panelPurpose">Purpose</div>
+      </div>
+      <button class="icon-btn" id="closeBtn">✕ Close</button>
+    </div>
+    <div class="toolbar">
+      <div class="seg">
+        <button id="desktopBtn" class="active">🖥 Desktop</button>
+        <button id="mobileBtn">📱 Mobile</button>
+      </div>
+      <button class="icon-btn gold" id="editToggleBtn">✎ Edit Fields</button>
+      <button class="icon-btn" id="copyBtn">Copy HTML</button>
+      <button class="icon-btn" id="openBtn">Open in New Tab</button>
+      <button class="icon-btn" id="downloadBtn">Download .html</button>
+    </div>
+    <div class="editor-panel" id="editorPanel">
+      <div class="field-row two-col">
+        <div>
+          <label>Send To (email)</label>
+          <input type="email" id="toEmail" placeholder="recipient@example.com">
+        </div>
+        <div>
+          <label>Subject</label>
+          <input type="text" id="subjectInput" placeholder="Email subject">
+        </div>
+      </div>
+      <div class="editor-actions">
+        <button class="icon-btn gold" id="updatePreviewBtn">🔄 Update Preview</button>
+        <button class="icon-btn" id="sendGmailBtn">📧 Send via Gmail</button>
+      </div>
+      <div class="editor-section-label">Message content</div>
+      <div id="editorFields"></div>
+    </div>
+    <div class="preview-wrap">
+      <iframe class="mail-frame" id="mailFrame"></iframe>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="templates-data.js"></script>
+<script>
+  const grid = document.getElementById('grid');
+  const overlay = document.getElementById('overlay');
+  const mailFrame = document.getElementById('mailFrame');
+  const panelTitle = document.getElementById('panelTitle');
+  const panelPurpose = document.getElementById('panelPurpose');
+  const toast = document.getElementById('toast');
+  let currentTpl = null;
+
+  // Real MMLI organization details — pre-filled but still editable.
+  const ORG_DEFAULTS = {
+    LOGO_URL: 'https://bhfthomas2003-jpg.github.io/mmli-email-system/assets/logo/mmli-logo.png',
+    CONTACT_EMAIL: 'mindmastersliberiainitiative@gmail.com',
+    CONTACT_ADDRESS: 'Paynesville City, Monrovia, Liberia',
+    PHONE: '+231 775 990 043 / +231 889 581 634',
+    WEBSITE: 'https://mindmastersliberiainitiative.github.io/MMLI.github.io',
+    CURRENT_YEAR: String(new Date().getFullYear()),
+    UNSUBSCRIBE_LINK: 'mailto:mindmastersliberiainitiative@gmail.com?subject=Unsubscribe',
+    FACEBOOK_URL: '#',
+    INSTAGRAM_URL: '#',
+    WHATSAPP_URL: '#',
+    REGISTRATION_LINK: '#'
+  };
+
+  // Defaults for the photo / link / content media module now included
+  // in every template. Replace FEATURED_IMAGE_URL with a real hosted
+  // photo URL before sending — everything else is safe to leave as-is
+  // or edit per email.
+  const MEDIA_DEFAULTS = {
+    FEATURED_IMAGE_URL: 'https://placehold.co/1040x520/0B2545/E8C860?text=Add+Your+Photo',
+    FEATURED_IMAGE_ALT: 'Featured photo',
+    FEATURED_CAPTION: 'Add a short caption describing this photo.',
+    FEATURED_LINK: '#',
+    RESOURCE_LINK_LABEL: 'Learn More',
+    RESOURCE_LINK_URL: '#'
+  };
+
+  // Sample starting content for the two content fields — fully editable/replaceable.
+  const CONTENT_DEFAULTS = {
+    RECIPIENT_NAME: '[Recipient Name / Organization]',
+    MESSAGE_BODY:
+`The Mind Masters Liberia Initiative (MMLI) is pleased to introduce the Back-to-School Academic Quiz Challenge 2026, an inter-school academic competition designed to promote academic excellence, critical thinking, teamwork, and intellectual development among junior and senior high school students in Liberia.
+
+MMLI is an educational initiative committed to discovering, developing, and celebrating young talents through academic programs that encourage students to pursue excellence in mathematics, science, and other areas of knowledge.
+
+We are seeking support from individuals, organizations, and institutions that share our vision of investing in education and empowering the next generation of thinkers, innovators, scientists, and leaders.
+
+Support can be provided through:
+• Financial contributions
+• Sponsorship of awards and prizes
+• Venue support
+• Media and publicity support
+
+We would be honored to partner with you in making this a successful and impactful educational event.`
+  };
+
+  function escapeHtml(s){
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // Turns plain typed/pasted text (blank line = new paragraph) into styled
+  // HTML paragraphs matching the template's body font, so multi-paragraph
+  // letters render correctly inside the single MESSAGE_BODY cell.
+  function textToEmailHtml(text){
+    const paras = text.split(/\n\s*\n/);
+    return paras.map(p => {
+      const lines = escapeHtml(p.trim()).split('\n').join('<br>');
+      return `<p style="margin:0 0 18px 0;font-family:Arial, Helvetica, sans-serif;font-size:15px;line-height:26px;color:#2B2F38;">${lines}</p>`;
+    }).join('');
+  }
+
+  function extractPlaceholders(html){
+    const set = new Set();
+    const re = /{{([A-Z_]+)}}/g;
+    let m;
+    while((m = re.exec(html))) set.add(m[1]);
+    return Array.from(set).sort();
+  }
+
+  const LONG_FIELD_HINTS = ['DESCRIPTION','TEXT','SUMMARY','BODY','REASON'];
+
+  function buildEditor(t){
+    const tokens = extractPlaceholders(t.raw);
+    const wrap = document.getElementById('editorFields');
+    wrap.innerHTML = '';
+    tokens.forEach(tok => {
+      const val = ORG_DEFAULTS[tok] || CONTENT_DEFAULTS[tok] || MEDIA_DEFAULTS[tok] || '';
+      const isLong = LONG_FIELD_HINTS.some(h => tok.includes(h));
+      const row = document.createElement('div');
+      row.className = 'field-row';
+      const label = tok.replace(/_/g, ' ').toLowerCase();
+      const safeAttrVal = val.replace(/"/g,'&quot;');
+      row.innerHTML = isLong
+        ? `<label>${label}</label><textarea data-token="${tok}" rows="10" placeholder="${tok}">${escapeHtml(val)}</textarea>`
+        : `<label>${label}</label><input type="text" data-token="${tok}" value="${safeAttrVal}" placeholder="${tok}">`;
+      wrap.appendChild(row);
+    });
+    document.getElementById('subjectInput').value = t.name + ' — Mind Masters Liberia Initiative';
+  }
+
+  function fillTemplate(){
+    let html = currentTpl.raw;
+    document.querySelectorAll('#editorFields input, #editorFields textarea').forEach(inp => {
+      const tok = inp.dataset.token;
+      const v = inp.value;
+      if(v === '') return;
+      const replacement = inp.tagName === 'TEXTAREA' ? textToEmailHtml(v) : escapeHtml(v);
+      html = html.split('{{'+tok+'}}').join(replacement);
+    });
+    return html;
+  }
+
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(()=>toast.classList.remove('show'), 1800);
+  }
+
+  function renderGrid(list){
+    grid.innerHTML = '';
+    list.forEach((t, i) => {
+      const card = document.createElement('div');
+      card.className = 'tpl-card';
+      card.innerHTML = `
+        <div class="thumb"><span>MMLI · ${String(i+1).padStart(2,'0')}</span></div>
+        <div class="num">TEMPLATE ${String(i+1).padStart(2,'0')}</div>
+        <h3>${t.name}</h3>
+        <p>${t.purpose}</p>
+      `;
+      card.addEventListener('click', () => openPreview(t));
+      grid.appendChild(card);
+    });
+  }
+
+  function openPreview(t){
+    currentTpl = t;
+    panelTitle.textContent = t.name;
+    panelPurpose.textContent = t.purpose + '  ·  ' + t.file;
+    mailFrame.classList.remove('mobile');
+    document.getElementById('desktopBtn').classList.add('active');
+    document.getElementById('mobileBtn').classList.remove('active');
+    document.getElementById('toEmail').value = '';
+    buildEditor(t);
+    mailFrame.srcdoc = fillTemplate();
+    document.getElementById('editorPanel').classList.remove('collapsed');
+    overlay.classList.add('open');
+  }
+
+  document.getElementById('editToggleBtn').addEventListener('click', () => {
+    document.getElementById('editorPanel').classList.toggle('collapsed');
+  });
+
+  document.getElementById('updatePreviewBtn').addEventListener('click', () => {
+    mailFrame.srcdoc = fillTemplate();
+    showToast('Preview updated');
+  });
+
+  document.getElementById('closeBtn').addEventListener('click', () => overlay.classList.remove('open'));
+  overlay.addEventListener('click', (e) => { if(e.target === overlay) overlay.classList.remove('open'); });
+
+  document.getElementById('desktopBtn').addEventListener('click', () => {
+    mailFrame.classList.remove('mobile');
+    document.getElementById('desktopBtn').classList.add('active');
+    document.getElementById('mobileBtn').classList.remove('active');
+  });
+  document.getElementById('mobileBtn').addEventListener('click', () => {
+    mailFrame.classList.add('mobile');
+    document.getElementById('mobileBtn').classList.add('active');
+    document.getElementById('desktopBtn').classList.remove('active');
+  });
+
+  async function copyText(text){
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch(e){
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+  }
+
+  document.getElementById('copyBtn').addEventListener('click', async () => {
+    if(!currentTpl) return;
+    await copyText(fillTemplate());
+    showToast('HTML copied — with your edits filled in');
+  });
+
+  document.getElementById('openBtn').addEventListener('click', () => {
+    if(!currentTpl) return;
+    const blob = new Blob([fillTemplate()], {type:'text/html'});
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  });
+
+  document.getElementById('downloadBtn').addEventListener('click', () => {
+    if(!currentTpl) return;
+    const blob = new Blob([fillTemplate()], {type:'text/html'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = currentTpl.file;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  document.getElementById('sendGmailBtn').addEventListener('click', async () => {
+    if(!currentTpl) return;
+    await copyText(fillTemplate());
+    const to = encodeURIComponent(document.getElementById('toEmail').value || '');
+    const su = encodeURIComponent(document.getElementById('subjectInput').value || '');
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${to}&su=${su}`;
+    window.open(gmailUrl, '_blank');
+    showToast('Design copied — paste it into the Gmail body (Ctrl/⌘+V)');
+  });
+
+  document.getElementById('search').addEventListener('input', (e) => {
+    const q = e.target.value.toLowerCase().trim();
+    const filtered = MMLI_TEMPLATES.filter(t =>
+      t.name.toLowerCase().includes(q) || t.purpose.toLowerCase().includes(q) || t.file.toLowerCase().includes(q)
+    );
+    renderGrid(filtered);
+  });
+
+  renderGrid(MMLI_TEMPLATES);
+</script>
+
+</body>
+</html>
