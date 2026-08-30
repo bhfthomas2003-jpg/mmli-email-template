@@ -616,7 +616,11 @@ We would be honored to partner with you in making this a successful and impactfu
       showToast('Email sent to ' + to);
     } catch (err) {
       console.error('EmailJS send failed:', err);
-      showToast('Send failed \u2014 check console for details');
+      // On mobile there's no easy dev console, so surface the real error on-screen.
+      const status = err && err.status ? err.status : '';
+      const detail = err && err.text ? err.text : (err && err.message ? err.message : JSON.stringify(err));
+      alert('Email send failed' + (status ? ' (status ' + status + ')' : '') + ':\n\n' + detail);
+      showToast('Send failed \u2014 see the error popup');
     } finally {
       btn.disabled = false;
       btn.classList.remove('sending');
